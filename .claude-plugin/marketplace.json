@@ -1,14 +1,14 @@
 {
   "name": "phangster",
-  "description": "PM — Just Approval → Driven Test → Evaluation. PAUL extended with local Story/Task tracking, GitHub per-task PRs, and Superpowers-style TDD enforcement.",
+  "description": "PM — Just Approval → Driven Test → Evaluation. PAUL extended with local Story/Task tracking, GitHub per-task PRs, Superpowers-style TDD enforcement, per-task security/observability/SEO ship gates, engineering-baseline scaffolding (CI, security workflows, dependabot), and /pm:audit.",
   "owner": {
     "name": "Bryan Phang"
   },
   "plugins": [
     {
       "name": "claude-pm",
-      "description": "PAUL extended with local Story/Task tracking, per-task GitHub PRs, human approval gate, full-plan-upfront workflow, and RED/GREEN/REFACTOR TDD enforcement per task.",
-      "version": "3.0.0",
+      "description": "PAUL extended with local Story/Task tracking, per-task GitHub PRs, human approval gate, full-plan-upfront workflow, RED/GREEN/REFACTOR TDD enforcement per task, security/observability/SEO ship gates, CI + security workflow scaffolding, and /pm:audit.",
+      "version": "3.1.0",
       "source": "./",
       "author": {
         "name": "Bryan Phang"

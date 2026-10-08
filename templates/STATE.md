@@ -106,6 +106,13 @@ last_push:
 <!-- Written by /pm:apply — one line per task -->
 <!-- Format: task_N: RED ✓ | GREEN ✓ | REFACTOR ✓ | tests_added: X | passing: Y -->
 
+## Baseline gaps
+<!-- Written by /pm:init and /pm:audit ci. One line per missing baseline item, with why it was skipped. -->
+<!-- e.g. branch_protection: none — free private repo, Accepted 2026-10-08 -->
+
+## Audits
+<!-- Written by /pm:audit — one line per run: AUDIT-YYYY-MM-DD-scope: PASS|FAIL crit/high/med/low -->
+
 ---
 *STATE.md — Updated after every significant action*
 *Size target: <100 lines (digest, not archive)*

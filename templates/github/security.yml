@@ -1,0 +1,70 @@
+# PM baseline security — scaffolded by /pm:init. Edit freely; PM never overwrites.
+#
+# Three cheap, free, always-on checks:
+#   gitleaks   — secrets in the diff (blocks the PR)
+#   semgrep    — static analysis, registry default rulesets (blocks on ERROR)
+#   dep-review — new vulnerable or copyleft dependencies on the PR (blocks)
+# plus a nightly audit of main so an advisory published AFTER merge is seen.
+#
+# CodeQL is the GitHub-native alternative to semgrep when the repo is public
+# or on GHAS; swap it in if that applies.
+name: Security
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  secrets:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  semgrep:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep (blocks on ERROR)
+        run: |
+          semgrep scan --metrics=off --quiet \
+            --config p/default --config p/secrets --config p/owasp-top-ten \
+            --exclude '*.test.*' --exclude '*.spec.*' \
+            --error --severity ERROR .
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-3.0, AGPL-3.0
+
+  nightly-audit:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      # __PM_SETUP__
+      - name: Audit main (high/critical)
+        run: __PM_AUDIT__

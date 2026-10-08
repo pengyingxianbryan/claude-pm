@@ -1,6 +1,6 @@
 # PM
 
-Story -> Tasks -> Approval -> TDD -> Github
+Story -> Tasks -> Approval -> TDD -> Ship Gates -> Github
 
 A Claude Code plugin that extends PAUL's Plan-Apply-Unify loop with local Story/Task tracking, GitHub per-task PRs, and strict TDD enforcement.
 
@@ -58,6 +58,28 @@ Implementation code written before a failing test exists is deleted. No exceptio
 ### 5. Full Plan Upfront
 
 Unlike PAUL's sequential plan-one-execute-one approach, PM generates plans for ALL phases during `/pm:plan` and presents them for a single APPROVE. Plans can be revised between phases as learnings emerge.
+
+### 6. Ship Gates — Security, Observability, SEO
+
+TDD proves the code does what you meant. The ship gates prove it is also safe to run in public. They run in the REFACTOR phase of every task, before commit:
+
+| Gate | Runs on | Checks |
+|---|---|---|
+| `security-gate` | **every task** | Secrets, trust-boundary validation, object-level authz, injection, crypto/sessions, dependency audit, headers, `.env.example` hygiene (OWASP-aligned) |
+| `observability-gate` | backend / fullstack / devops | Error tracking (Sentry or equivalent) wired with env DSN + release, no swallowed catches, structured logs, health endpoint, alert routing |
+| `seo-gate` | frontend touching a public page | Per-page metadata, canonical, OG + Twitter together, robots/sitemap, JSON-LD, Core Web Vitals, a11y floor |
+
+Every PR body carries a Security / Observability / SEO section. After `gh pr create`, PM waits on `gh pr checks --watch` and never asks you to merge a red PR.
+
+A **PreToolUse hook** (`hooks/secrets-gate.sh`) mechanically blocks any `git commit` or `git push` whose added lines contain a secret-shaped string (AWS keys, `sk-…`, `ghp_…`, private keys, JWTs, `password = "…"`). Prose rules get rationalised past; an exit-2 hook does not.
+
+### 7. Engineering Baseline at Init
+
+`/pm:init` detects the stack and reports what the repo is missing — CI workflow, security workflow (gitleaks + semgrep + dependency review + nightly audit), `dependabot.yml`, PR template, `.env.example`, branch protection — and offers to scaffold the missing pieces from `templates/github/` on a `pm/baseline` branch. Phase 1 of every roadmap must carry the remaining baseline tasks (error tracking, health + uptime, security headers, robots/sitemap/metadata for web).
+
+### 8. `/pm:audit` — Whole-Repo Sweep
+
+The per-task gates only see the diff. `/pm:audit [security|observability|seo|ci|all]` runs the same checklists across the entire repo plus GitHub settings (branch protection, secret scanning), writes a dated report to `.pm/audits/` with a Δ against the previous run, and promotes Critical/High findings to `.pm/ISSUES.md`. `--fix` applies low-risk scaffolding only, via branch + PR. Run it as a baseline on an existing codebase, before `/pm:verify` on phases that touch auth/data/public pages, and before any pen-test or SOC 2 / ISO evidence request.
 
 ---
 
@@ -169,18 +191,21 @@ During `/pm:apply`, every task runs through RED → GREEN → REFACTOR:
 ### After Each Task
 
 ```bash
-# Commit
-git commit -m "feat: task 1 — create login endpoint
+# Ship gates (security always; observability/seo when applicable) — must be clean
+
+# Stage by name — never `git add -A` — then commit. Secrets hook may block; fix, never bypass.
+git add src/auth/login.ts src/auth/login.test.ts
+git commit -m "feat(phase-1): task 1 — create login endpoint
 
 - RED: login.test.ts — 3 tests added, confirmed failing
 - GREEN: login.ts — all 3 tests passing
 - REFACTOR: cleanup applied
+- Gates: security ✓ | observability ✓ | seo n/a"
 
-Co-Authored-By: Claude <noreply@anthropic.com>"
-
-# Push and create PR
+# Push, create PR (with Security/Observability/SEO sections), wait for CI
 git push -u origin pm/01-foundation-task-1
 gh pr create --title "Task 1: Create login endpoint" ...
+gh pr checks --watch --fail-fast
 
 # User reviews and merges PR
 # TASK-01.md updated to Done with completion record
@@ -199,7 +224,7 @@ gh pr create --title "Task 1: Create login endpoint" ...
 
 ---
 
-## Command Reference — 10 Commands
+## Command Reference — 11 Commands
 
 | Command | What it does |
 |---|---|
@@ -207,6 +232,7 @@ gh pr create --title "Task 1: Create login endpoint" ...
 | `/pm:plan` | Plan all phases, revise, fix UAT issues, or modify roadmap |
 | `/pm:apply` | Execute with TDD (RED/GREEN/REFACTOR), per-task branches + PRs |
 | `/pm:unify` | Close loop — summary, reconciliation, triage deferred issues |
+| `/pm:audit` | Security / observability / SEO / CI sweep — dated report, findings → ISSUES.md |
 | `/pm:verify` | UAT gate — PASS updates to Done, FAIL captures issues |
 | `/pm:progress` | Status across all phases + ONE next action |
 | `/pm:pause` | Full handoff + session continuity |
@@ -224,6 +250,17 @@ gh pr create --title "Task 1: Create login endpoint" ...
 | `--add-phase <desc>` | **Add Phase** — append to roadmap |
 | `--remove-phase N` | **Remove Phase** — remove future phase |
 
+### `/pm:audit` arguments
+
+| Argument | Scope |
+|---|---|
+| `security` | OWASP: secrets (incl. history), validation, authz, injection, deps, headers, RLS |
+| `observability` | Error tracking, swallowed catches, logs, health, uptime, alert routing |
+| `seo` | Metadata, robots/sitemap, JSON-LD, Lighthouse CWV (public surface only) |
+| `ci` | Workflows, dependabot, PR template, branch protection, secret scanning, workflow hygiene |
+| `all` (default) | Everything above |
+| `--fix` | Low-risk fixes only (scaffolds, .gitignore, .env.example, workflow hygiene) via branch + PR |
+
 ### `/pm:research` arguments
 
 | Argument | Mode |
@@ -240,36 +277,45 @@ gh pr create --title "Task 1: Create login endpoint" ...
 pm/
 ├── .claude-plugin/
 │   ├── marketplace.json       # Marketplace registration
-│   └─��� plugin.json            # Plugin metadata
+│   └── plugin.json            # Plugin metadata
 ├── hooks/
-│   ├── hooks.json             # SessionStart hook config
-│   └── setup.sh               # Thin sentinel check — defers to /pm:init
-├── commands/                   # 10 commands total
-│   ├── pm-init.md           # Project setup: GitHub config, overview, roadmap, phase dirs
-│   ├── pm-plan.md           # Plan all / revise / fix / add-phase / remove-phase
-│   ├── pm-apply.md          # TDD execution with per-task branches and PRs
-│   ├── pm-unify.md          # Loop closure: summary, reconciliation, deferred issues
-│   ├── pm-verify.md         # UAT confirmation gate
-│   ├── pm-progress.md       # Smart status with task-level visibility
-│   ���── pm-pause.md          # Full handoff
-│   ├── pm-resume.md         # Context restoration
-│   ├── pm-research.md       # Research topic / phase / codebase
-│   └── pm-help.md           # Command reference
+│   ├── hooks.json             # SessionStart + PreToolUse hook config
+│   ├── setup.sh               # Thin sentinel check — defers to /pm:init
+│   └── secrets-gate.sh        # Blocks git commit/push carrying a secret-shaped string
+├── commands/                  # 11 commands total
+│   ├── pm-init.md             # Project setup: GitHub, engineering baseline, overview, roadmap
+│   ├── pm-plan.md             # Plan all / revise / fix / add-phase / remove-phase
+│   ├── pm-apply.md            # TDD + ship gates, per-task branches, PRs, CI wait
+│   ├── pm-unify.md            # Loop closure: summary, reconciliation, deferred issues
+│   ├── pm-verify.md           # UAT confirmation gate
+│   ├── pm-audit.md            # Security / observability / SEO / CI sweep
+│   ├── pm-progress.md         # Smart status with task-level visibility
+│   ├── pm-pause.md            # Full handoff
+│   ├── pm-resume.md           # Context restoration
+│   ├── pm-research.md         # Research topic / phase / codebase
+│   └── pm-help.md             # Command reference
 ├── skills/
-│   ├── tdd-gate/
-│   │   └── SKILL.md           # RED/GREEN/REFACTOR enforcement
-│   └── designer-uxui/
-│       └── SKILL.md           # Premium frontend design enforcement
+│   ├── tdd-gate/SKILL.md          # RED/GREEN/REFACTOR enforcement
+│   ├── designer-uxui/SKILL.md     # Premium frontend design enforcement
+│   ├── security-gate/SKILL.md     # OWASP-aligned per-task + repo checks
+│   ├── observability-gate/SKILL.md# Sentry / logs / health / alerts
+│   └── seo-gate/SKILL.md          # Metadata / crawlability / JSON-LD / CWV
 ├── templates/
-���   ├── PLAN.md                # Plan template (readable markdown)
-│   ├── STATE.md               # State template with GitHub/TDD sections
-��   ├── STORY.md               # Phase story template (Jira-style)
+│   ├── PLAN.md                # Plan template (readable markdown)
+│   ├── STATE.md               # State template with GitHub/TDD/Baseline/Audits sections
+│   ├── STORY.md               # Phase story template (Jira-style)
 │   ├── TASK.md                # Individual task template (Jira-style)
 │   ├── PROJECT.md             # Project context template
 │   ├── ROADMAP.md             # Phase structure template
-│   └── SUMMARY.md             # Completion documentation template
-├���─ rules/
-│   └── pm-rules.md          # 7 hard rules
+│   ├── SUMMARY.md             # Completion documentation template
+│   ├── AUDIT.md               # /pm:audit report template + severity rubric
+│   └── github/
+│       ├── ci.yml                     # type-check + lint + test + dep audit on PR
+│       ├── security.yml               # gitleaks + semgrep + dependency review + nightly audit
+│       ├── dependabot.yml             # weekly, grouped
+│       └── PULL_REQUEST_TEMPLATE.md   # TDD + Security + Observability + SEO sections
+├── rules/
+│   └── pm-rules.md            # 10 hard rules
 ├── CLAUDE.md                  # Agent instructions
 ├── LICENSE                    # MIT
 └── README.md                  # This file
@@ -294,5 +340,5 @@ MIT — see [LICENSE](LICENSE).
 
 ---
 
-*PM v3.0 — Just Approval → Driven Test → Evaluation*
+*PM v3.1 — Just Approval → Driven Test → Evaluation*
 *Built on [PAUL](https://github.com/ChristopherKahler/paul) (Plan-Apply-Unify Loop) + [Superpowers TDD](https://github.com/nicholasgriffintn/superpowers)*

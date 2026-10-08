@@ -23,7 +23,7 @@ INIT ──▶ PLAN ALL ──▶ APPROVE ──▶ [per-phase loop]
                                    optional revision
 ```
 
-## 10 Commands
+## 11 Commands
 
 | Command | What it does |
 |---|---|
@@ -31,6 +31,7 @@ INIT ──▶ PLAN ALL ──▶ APPROVE ──▶ [per-phase loop]
 | `/pm:plan` | Plan all phases, revise, fix UAT issues, or modify roadmap |
 | `/pm:apply` | Execute with TDD (RED/GREEN/REFACTOR), per-task branches + PRs |
 | `/pm:unify` | Close loop — summary, reconciliation, triage deferred issues |
+| `/pm:audit` | Security / observability / SEO / CI sweep → dated report, findings → ISSUES.md |
 | `/pm:verify` | UAT gate — PASS updates to Done, FAIL captures issues |
 | `/pm:progress` | Status across all phases + ONE next action |
 | `/pm:pause` | Full handoff + session continuity |
@@ -55,6 +56,26 @@ INIT ──▶ PLAN ALL ──▶ APPROVE ──▶ [per-phase loop]
 | `<topic>` | Research a specific topic |
 | `phase N` | Identify and research unknowns for phase N |
 | `codebase` | Map the existing codebase |
+
+## `/pm:audit` Arguments
+
+| Argument | Scope |
+|---|---|
+| `security` | OWASP: secrets, validation, authz, injection, deps, headers, RLS |
+| `observability` | Error tracking, swallowed catches, logs, health, alerts |
+| `seo` | Metadata, robots/sitemap, JSON-LD, Core Web Vitals (public surface only) |
+| `ci` | Workflows, dependabot, PR template, branch protection, secret scanning |
+| `all` (default) | Everything above |
+| `--fix` | Apply low-risk fixes (scaffolds, .gitignore, .env.example) via branch + PR |
+
+## Ship Gates (per task, REFACTOR phase)
+
+```
+security       — every task. Secrets hook blocks commit/push mechanically.
+observability  — backend / fullstack / devops. Nothing fails silently.
+seo            — frontend touching a public page. Every page earns its index.
+CI             — gh pr checks --watch green before a merge is requested.
+```
 
 ## Local Tracking
 
@@ -100,8 +121,10 @@ REFACTOR — Clean up only → GATE: breaks anything? Undo.
 6. **GitHub gate** — remote verified before any code
 7. **UNIFY every phase** — no orphan phases
 8. **Boundaries are absolute** — DO NOT CHANGE means DO NOT CHANGE
+9. **Ship gates** — security on every task, observability/SEO where applicable, CI green before merge
+10. **Baseline at init** — CI, security workflows, dependabot, PR template, .env.example, branch protection
 
 ---
 
-*PM v3.0 | Built on PAUL + Superpowers TDD*
+*PM v3.1 | Built on PAUL + Superpowers TDD + OWASP*
 </reference>

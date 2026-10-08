@@ -1,0 +1,17 @@
+# PM baseline — scaffolded by /pm:init. Weekly, grouped, so updates arrive as
+# one reviewable PR per ecosystem instead of twenty.
+version: 2
+updates:
+  - package-ecosystem: "__PM_ECOSYSTEM__"   # npm | pip | gomod | cargo | bundler
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 5
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

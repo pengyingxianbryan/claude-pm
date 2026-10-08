@@ -44,6 +44,12 @@ GitHub status:
 
 TDD Results from STATE.md:
 - Per-task RED/GREEN/REFACTOR status
+
+Ship-readiness from STATE.md:
+- `## Baseline gaps` — anything still missing from init
+- `## Audits` — last run per scope, PASS/FAIL, open Critical/High
+- `.pm/ISSUES.md` — count of open issues with Origin AUDIT-*
+If any Critical is open, it is the ONE next action regardless of loop position.
 </step>
 
 <step name="calculate_progress">

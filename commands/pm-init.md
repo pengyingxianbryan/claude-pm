@@ -48,6 +48,49 @@ Current directory state (check for existing .pm/)
 </step>
 
 <!-- ════════════════════════════════════════════════ -->
+<!-- STEP 1b — ENGINEERING BASELINE                   -->
+<!-- ════════════════════════════════════════════════ -->
+
+<step name="engineering_baseline">
+Runs every init (new or existing repo). Detect, report, offer to scaffold. Never overwrite a file that exists.
+
+1. **Detect stack** — lockfile → package manager (`pnpm-lock.yaml` / `package-lock.json` / `yarn.lock` / `bun.lockb` / `requirements*.txt` / `go.mod` / `Cargo.toml`); manifest → framework (Next.js, Expo, Django, …). Read the test / lint / type-check script names from `package.json` (or equivalent).
+
+2. **Check the baseline** and print one line per item:
+   ```
+   ENGINEERING BASELINE
+     CI workflow (.github/workflows/*.yml with test step)   ✗ missing
+     Security workflow (secrets scan + SAST + dep review)    ✗ missing
+     dependabot.yml / renovate.json                           ✗ missing
+     PR template                                              ✗ missing
+     .gitignore covers .env*                                  ✓
+     .env.example present                                     ✗ missing (3 env reads found)
+     Error tracking SDK (Sentry or equivalent)                ✗ not in deps
+     Branch protection on main                                ✗ none (gh api 404)
+   ```
+
+3. **Offer to scaffold** the missing files from `templates/github/` — ask once: "Scaffold the missing baseline now? (yes / pick / skip)".
+   - Copy `ci.yml`, `security.yml`, `dependabot.yml`, `PULL_REQUEST_TEMPLATE.md` into `.github/` as needed.
+   - Replace placeholders: `__PM_SETUP__` → the setup-node/pnpm/python/go steps for the detected stack; `__PM_TYPECHECK__` / `__PM_LINT__` / `__PM_TEST__` → the real script commands; `__PM_AUDIT__` → `pnpm audit --audit-level high` / `npm audit --audit-level=high` / `pip-audit` / …; `__PM_ECOSYSTEM__` → `npm` / `pip` / `gomod` / `cargo`.
+   - Create `.env.example` listing every env read found, each with a comment block (purpose, scope, where the value comes from). Values empty.
+   - Append `.env*` + `!.env.example` to `.gitignore` if absent.
+   - Commit on a branch `pm/baseline` and open a PR — same discipline as any task. The user merges.
+
+4. **Branch protection** — if `gh api repos/{owner}/{repo}/branches/main/protection` is 404, print the one command that fixes it and ask whether to run it:
+   ```bash
+   gh api -X PUT repos/{owner}/{repo}/branches/main/protection \
+     -f required_status_checks[strict]=true -f required_status_checks[contexts][]=ci \
+     -f enforce_admins=false -f required_pull_request_reviews[required_approving_review_count]=0 \
+     -F restrictions=null -f allow_force_pushes=false -f allow_deletions=false
+   ```
+   (Review count 0 for solo repos; raise it when there is a second reviewer.) Free private repos without branch protection: note it as Accepted in STATE.md with the reason.
+
+5. **Error tracking** — if no SDK is present, do not install here. Record it so Step 3 puts it in Phase 1 (see below).
+
+Everything skipped is written to STATE.md `## Baseline gaps` so `/pm:audit ci` and `/pm:progress` keep surfacing it.
+</step>
+
+<!-- ════════════════════════════════════════════════ -->
 <!-- STEP 2 — PROJECT OVERVIEW                        -->
 <!-- ════════════════════════════════════════════════ -->
 
@@ -85,9 +128,15 @@ Based on the project overview, propose a full multi-phase roadmap:
 
 1. Analyze the project scope, dependencies, and complexity
 2. Break into phases (typically 3-8 phases):
-   - Phase 1 is always foundation/setup
+   - Phase 1 is always foundation/setup, and it **must** contain these tasks (skip only the ones the baseline check marked ✓):
+       • CI + security workflows merged and required by branch protection
+       • Error tracking wired (Sentry or equivalent) with env DSN, `environment`, `release`, source maps
+       • `/api/health` (or equivalent) + external uptime monitor
+       • Security headers (CSP, HSTS, nosniff, Referrer-Policy) set in one place
+       • For projects with a public web surface: `robots.txt`, `sitemap`, root metadata (title/description/OG/Twitter), `Organization` JSON-LD
+     Each is a normal task: discipline `devops` / `backend` / `frontend`, with Files, Verification, Done-when.
    - Middle phases deliver core features (vertical slices preferred)
-   - Final phase is polish/deployment
+   - Final phase is polish/deployment, and includes one `/pm:audit all` task whose Done-when is "no Critical/High open" 
 3. For each phase, define:
    - Name and goal
    - Key deliverables
@@ -182,6 +231,10 @@ Remote: [verified/unverified]
 - [ ] .pm/.env created with GITHUB_REPO
 - [ ] .pm/.env added to .gitignore
 - [ ] .pm/.configured sentinel created
+- [ ] Engineering baseline detected and reported; missing CI/security/dependabot/PR template/.env.example offered from templates/github/ (never overwriting)
+- [ ] Branch protection checked; fix command offered
+- [ ] Skipped baseline items recorded in STATE.md ## Baseline gaps
+- [ ] Phase 1 roadmap carries the mandatory baseline tasks
 - [ ] Project conversation completed — PROJECT.md populated
 - [ ] Roadmap proposed, refined, and approved
 - [ ] ROADMAP.md written with all phase details

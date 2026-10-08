@@ -36,6 +36,7 @@ From STATE.md, restore:
 - Loop position (PLAN/APPLY/UNIFY)
 - GitHub section: branch, last push
 - TDD Results: which tasks completed, which pending
+- Blockers/Concerns + Baseline gaps + Audits: open Critical findings surface before any other next action
 
 From STORY.md and TASK-NN.md files:
 - Per-phase Story status

@@ -5,7 +5,7 @@ paths:
 
 # PM Rules
 
-Domain rules for PM — enforced at all times during PM operations.
+Domain rules for PM — enforced at all times during PM operations. Rules 1–7 govern the loop; Rules 8–10 govern what is allowed to ship.
 
 ## Rule 1 — Approval Gate
 
@@ -71,3 +71,23 @@ The Boundaries section of PLAN.md listing Do Not Change items is enforced absolu
 If any check fails for any reason, APPLY must stop immediately and report the failure to the user. No code is written until the remote is confirmed reachable.
 
 Every task completion must result in a `git push` and `gh pr create`. A task is not considered complete until the PR is created and the user has confirmed the merge.
+
+## Rule 8 — Security Gate
+
+No task reaches `git commit` with an open finding from `skills/security-gate/SKILL.md`. Concretely, for every task:
+1. No secret-shaped string in the diff. The `secrets-gate.sh` PreToolUse hook enforces this mechanically on `git commit` and `git push`; a blocked commit is fixed, never bypassed with `--no-verify` or by editing the hook.
+2. Every new env read is documented in `.env.example` in the same change.
+3. Every input crossing a trust boundary is parsed into a typed shape before use.
+4. Every handler that touches an object checks the caller may touch *that* object.
+5. No string-built SQL / shell / HTML. No `git add -A`.
+6. The stack's dependency audit at `high` is clean, or the advisory is floored with a named reason.
+
+A finding whose fix lies outside the task's Boundaries is reported to the user, who widens scope or logs it to `.pm/ISSUES.md` as `High`. It is never silently deferred.
+
+## Rule 9 — CI Green Before Merge Request
+
+After `gh pr create`, PM runs `gh pr checks --watch` and does not ask the user to merge until every check passes. A red check is fixed on the same branch. A repo with no checks is told so once and pointed at `/pm:audit ci --fix`; the absence is recorded in STATE.md `## Baseline gaps`.
+
+## Rule 10 — Observability and SEO Gates Where Applicable
+
+Backend / fullstack / devops tasks pass `skills/observability-gate/SKILL.md` (errors reported, no swallowed catches, structured logs, health). Frontend tasks touching a public page pass `skills/seo-gate/SKILL.md` (metadata, crawlability, structured data, CWV). The PR body states the result of each applicable gate or `n/a` with the reason.

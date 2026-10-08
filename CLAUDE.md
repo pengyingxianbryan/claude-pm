@@ -10,6 +10,10 @@ A Claude Code plugin that extends PAUL's Plan-Apply-Unify loop with:
 - Hard human approval gate before any execution begins
 - Superpowers-style RED/GREEN/REFACTOR TDD enforcement per task
 - Premium frontend design enforcement via designer-uxui skill (Next.js, Tailwind, Motion)
+- Ship gates per task: security (OWASP, every task), observability (Sentry/logs/health, backend), SEO/AEO (public pages)
+- Engineering baseline at init: CI + security workflows, dependabot, PR template, .env.example, branch protection
+- `/pm:audit` whole-repo sweep against the same checklists, dated report, findings promoted to ISSUES.md
+- Mechanical secrets gate: PreToolUse hook blocks `git commit` / `git push` carrying a secret-shaped string
 
 ## Local Tracking — Story/Task Hierarchy
 
@@ -43,15 +47,15 @@ Each task gets its own branch and PR for review:
 # Branch naming: pm/{phase}-task-{N}
 git checkout -b pm/01-foundation-task-1 main
 
-# After TDD passes, commit and push
-git add -A
-git commit -m "feat: task 1 — [task name]
+# After TDD + ship gates pass, stage by name (never -A), commit, push.
+# No AI co-author trailer — the commit is the user's.
+git add src/auth/login.ts src/auth/login.test.ts
+git commit -m "feat(phase-1): task 1 — [task name]
 
 - RED: [test file] — X tests added, confirmed failing
 - GREEN: [impl file] — all X tests passing
 - REFACTOR: cleanup applied
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+- Gates: security ✓ | observability ✓ | seo n/a"
 
 git push -u origin pm/01-foundation-task-1
 ```
@@ -72,15 +76,26 @@ gh pr create \
 ## Changes
 [Files changed]
 
+## Security
+- Secrets scan clean · boundaries validated with [zod] · authz: [object check] · new deps: none · audit clean
+
+## Observability
+- Errors via [Sentry/helper] · no swallowed catches · new env documented
+
+## SEO
+n/a — authenticated route
+
 ## Acceptance Criteria
 [From TASK-NN.md]
 EOF
 )" \
   --base main \
   --head pm/01-foundation-task-1
+
+gh pr checks --watch --fail-fast   # green before asking for a merge
 ```
 
-After PR is created, ask the user to review and merge before proceeding to the next task.
+After PR is created and checks are green, ask the user to review and merge before proceeding to the next task.
 
 **All other git ops:** Native `git` CLI (branch, commit, push, status, remote). No wrapper needed.
 
@@ -89,6 +104,8 @@ After PR is created, ask the user to review and merge before proceeding to the n
 1. `/pm:init` — Project setup
    Verify GitHub CLI authenticated
    Configure GitHub remote
+   Engineering baseline: detect stack; offer CI/security/dependabot/PR-template scaffold from templates/github/; .env.example; branch protection
+   Phase 1 must carry: CI required by protection, error tracking, health + uptime, security headers, (web) robots/sitemap/metadata/JSON-LD
    Conversational project overview
    PM recommends full multi-phase roadmap
    User refines → PM creates phase directories
@@ -112,8 +129,10 @@ After PR is created, ask the user to review and merge before proceeding to the n
         - Update TASK-NN.md status: `In Progress`
         - Create task branch: `pm/{phase}-task-{N}`
         - TDD: RED → GREEN → REFACTOR
-        - Commit and push
-        - Create PR via `gh pr create`
+        - Ship gates in REFACTOR: security (always) · observability (backend) · seo (public page)
+        - Stage by name, commit, push (secrets hook may block — fix, never bypass)
+        - Create PR via `gh pr create` with Security/Observability/SEO sections
+        - `gh pr checks --watch` — green first
         - Ask user to review/merge PR
         - Update TASK-NN.md status: `Done` with completion record
         - Checkout main, pull latest
@@ -127,12 +146,16 @@ After PR is created, ask the user to review and merge before proceeding to the n
 
    c. (Optional) Revise next phase plan if earlier phases revealed new information
 
-4. `/pm:verify` (when ready for UAT)
+4. `/pm:audit [security|observability|seo|ci|all] [--fix]` (baseline on an existing repo; before verify on phases touching auth/data/public pages; before pen-test / SOC 2 evidence)
+   Dated report in .pm/audits/, Δ vs previous, Critical/High promoted to ISSUES.md
+   --fix = low-risk scaffolding only, via branch + PR
+
+5. `/pm:verify` (when ready for UAT)
    Show summary and list of merged PRs
    User types PASS or FAIL
    On PASS: update STORY.md status: `Done`
 
-## 10 commands — that's it
+## 11 commands — that's it
 
 | Command | What it does |
 |---|---|
@@ -140,6 +163,7 @@ After PR is created, ask the user to review and merge before proceeding to the n
 | `/pm:plan` | Plan all / revise / fix / add-phase / remove-phase |
 | `/pm:apply` | Execute with TDD, per-task branches + PRs, local status updates |
 | `/pm:unify` | Summary, reconciliation, triage deferred issues |
+| `/pm:audit` | Security / observability / SEO / CI sweep → dated report + ISSUES.md |
 | `/pm:verify` | UAT gate — PASS or FAIL |
 | `/pm:progress` | Status + one next action |
 | `/pm:pause` | Full handoff + session continuity |
@@ -160,3 +184,9 @@ After PR is created, ask the user to review and merge before proceeding to the n
 - ALWAYS reference phase and task in commit messages
 - NEVER modify files listed in PLAN.md boundaries section
 - NEVER batch multiple tasks through RED phase together
+- NEVER commit with an open security-gate finding; NEVER bypass the secrets hook (`--no-verify`, editing the hook, moving the secret to a "temp" file)
+- NEVER `git add -A`; stage the task's files by name
+- NEVER add an AI co-author trailer to commits or PRs
+- NEVER ask the user to merge a PR with a failing check
+- NEVER read a new env var without adding it to `.env.example` in the same change
+- ALWAYS run the security gate on every task; observability gate on backend/fullstack/devops; seo gate on public pages

@@ -123,6 +123,16 @@ Update STATE.md:
 **IMPLEMENTATION-BEFORE-TEST CHECK:** If implementation code for a task exists before the failing test is written, DELETE IT. Start clean. This is not negotiable.
 
 **DESIGN QUALITY CHECK:** If the task involves frontend UI (components, pages, layouts, animations), activate the `designer-uxui` skill from `skills/designer-uxui/SKILL.md`. During REFACTOR phase, run the skill's Review Checklist against all UI code produced. Violations must be fixed before the task is marked complete.
+
+**SHIP GATES (REFACTOR phase, after tests are green, before commit):**
+
+| Gate | Skill | Activates on |
+|------|-------|--------------|
+| Security | `skills/security-gate/SKILL.md` | **Every task.** Secrets, trust-boundary validation, authz, injection, deps, `.env.example`. |
+| Observability | `skills/observability-gate/SKILL.md` | backend / fullstack / devops, or any new async call or error boundary |
+| SEO | `skills/seo-gate/SKILL.md` | frontend / fullstack touching a public page, route, layout, sitemap, robots |
+
+Run each applicable checklist against `git diff main...HEAD`. A failed check is fixed inside the task. If the fix is outside the task's Boundaries → STOP, report, let the user widen scope or log to `.pm/ISSUES.md`. The task does not reach `git commit` with an open gate.
 </step>
 
 <!-- ════════════════════════════════════════════════ -->
@@ -132,17 +142,18 @@ Update STATE.md:
 <step name="commit_push_pr">
 After all three TDD phases pass for a task:
 
-1. **Stage and commit:**
+1. **Stage and commit** — stage the task's files by name (never `git add -A`: it is how `.env`, build output, and stray dumps reach the remote). The PreToolUse `secrets-gate.sh` hook blocks the commit if a secret-shaped string is staged.
    ```bash
-   git add -A
-   git commit -m "feat: task [N] — [task name]
+   git add [files from TASK-NN.md Files field + their tests]
+   git status --short          # confirm nothing unexpected is staged
+   git commit -m "feat(phase-N): task [N] — [task name]
 
    - RED: [test file] — X tests added, confirmed failing
    - GREEN: [impl file] — all X tests passing
    - REFACTOR: cleanup applied
-
-   Co-Authored-By: Claude <noreply@anthropic.com>"
+   - Gates: security ✓ | observability ✓ | seo ✓/n/a"
    ```
+   No AI co-author trailer. The commit is the user's.
 
 2. **Push:**
    ```bash
@@ -167,6 +178,21 @@ After all three TDD phases pass for a task:
    ## Files Changed
    [List of files from git diff]
 
+   ## Security
+   - Secrets scan: clean
+   - Trust boundaries touched: [list / none] — validated with [zod / …]
+   - Authz: [object-level check on X / n/a]
+   - New deps: [name — why / none]
+   - Audit: `[pnpm|npm|pip] audit` high — clean
+
+   ## Observability
+   - Errors reported via: [Sentry / shared helper / n/a]
+   - Swallowed catches: none
+   - New env documented in .env.example: [names / none]
+
+   ## SEO
+   [per seo-gate PR section, or "n/a — authenticated route / no page touched"]
+
    ## Acceptance Criteria
    [From TASK-NN.md acceptance criteria]
    EOF
@@ -175,7 +201,15 @@ After all three TDD phases pass for a task:
      --head pm/{phase-name}-task-{N}
    ```
 
-4. **Ask user to review:**
+4. **CI gate — wait for checks before asking for a merge:**
+   ```bash
+   gh pr checks --watch --fail-fast
+   ```
+   - All green → continue to step 5.
+   - A check fails → read the log (`gh run view --log-failed`), fix on the same branch, re-run the TDD verification command, commit, push. Repeat. Never ask the user to merge a red PR.
+   - No checks reported after 60 s → the repo has no CI. Say so once, recommend `/pm:audit ci --fix`, continue.
+
+5. **Ask user to review:**
    ```
    ════════════════════════════════════════
    PR READY FOR REVIEW
@@ -187,6 +221,8 @@ After all three TDD phases pass for a task:
 
    TDD: RED ✓ | GREEN ✓ | REFACTOR ✓
    Tests: X added, Y total passing
+   Gates: security ✓ | observability ✓ | seo n/a
+   CI: [N] checks passing
 
    ────────────────────────────────────────
    Review the PR and merge it to continue.
@@ -313,8 +349,10 @@ Update STATE.md loop position: APPLY ✓
 - [ ] Every task completed RED → GREEN → REFACTOR in order
 - [ ] No test passed before implementation (RED gate)
 - [ ] No existing tests broken (GREEN gate)
-- [ ] Every task committed with structured message
-- [ ] Every task pushed and PR created via `gh pr create`
+- [ ] Every task passed the security gate; observability/SEO gates where applicable
+- [ ] Every task committed with structured message, files staged by name, no AI co-author trailer
+- [ ] Every task pushed and PR created via `gh pr create` with Security/Observability/SEO sections
+- [ ] CI checks green (or absent and reported) before the user is asked to merge
 - [ ] Every task's PR reviewed and merged by user before proceeding
 - [ ] Every task's TASK-NN.md updated to Done with completion record
 - [ ] STORY.md task table updated per task

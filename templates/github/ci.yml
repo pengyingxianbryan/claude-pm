@@ -1,0 +1,42 @@
+# PM baseline CI — scaffolded by /pm:init. Edit freely; PM never overwrites.
+#
+# Presubmit on every PR to main. Fails fast on: type errors, lint, tests,
+# new high/critical dependency advisories. Branch protection should require
+# the `ci` check so a red PR cannot merge.
+#
+# Package manager is detected by lockfile at scaffold time; swap the three
+# commands below if your scripts are named differently.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # __PM_SETUP__  (replaced at scaffold: pnpm / npm / yarn / bun / pip / go)
+
+      - name: Type check
+        run: __PM_TYPECHECK__
+
+      - name: Lint
+        run: __PM_LINT__
+
+      - name: Test
+        run: __PM_TEST__
+
+      - name: Dependency audit (fail on new high/critical)
+        run: __PM_AUDIT__

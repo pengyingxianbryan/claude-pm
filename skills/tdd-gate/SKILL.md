@@ -110,18 +110,18 @@ Proceed with unrefactored code rather than breaking tests.
 
 ### After All Three Phases Pass
 
-1. **Commit** with structured message:
+1. **Ship gates** — run `security-gate` (always), `observability-gate` and `seo-gate` (when applicable). Open finding = task not done.
+2. **Commit** with structured message, files staged by name (never `git add -A`), no AI co-author trailer:
    ```
-   feat: task [N] — [task name]
+   feat(phase-N): task [N] — [task name]
 
    - RED: [test file] — X tests added, confirmed failing
    - GREEN: [impl file] — all X tests passing
    - REFACTOR: cleanup applied
-
-   Co-Authored-By: Claude <noreply@anthropic.com>
+   - Gates: security ✓ | observability ✓ | seo n/a
    ```
-2. **Push** to task branch: `git push -u origin pm/{phase}-task-{N}`
-3. **Create PR** via `gh pr create` for review
+3. **Push** to task branch: `git push -u origin pm/{phase}-task-{N}`
+4. **Create PR** via `gh pr create` for review, then `gh pr checks --watch` — green before asking for a merge
 4. **Update TASK-NN.md** status to Done with completion record
 5. **Update STATE.md** TDD Results section
 6. Move to next task (after PR is merged)

@@ -1,7 +1,7 @@
 {
   "name": "claude-pm",
-  "version": "3.0.0",
-  "description": "PM — Just Approval → Driven Test → Evaluation. PAUL extended with local Story/Task tracking, GitHub per-task PRs, human approval gate, full-plan-upfront workflow, and Superpowers-style TDD enforcement.",
+  "version": "3.1.0",
+  "description": "PM — Just Approval → Driven Test → Evaluation. PAUL extended with local Story/Task tracking, GitHub per-task PRs, human approval gate, full-plan-upfront workflow, Superpowers-style TDD enforcement, per-task security/observability/SEO ship gates, engineering-baseline scaffolding (CI, security workflows, dependabot), and /pm:audit.",
   "author": {
     "name": "Bryan Phang"
   },
